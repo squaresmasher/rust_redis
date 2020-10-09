@@ -4,38 +4,41 @@ use redis::{Client, Commands, Connection, RedisResult};
 
 mod cache {
     pub trait AbstractCache {
-        fn new() -> Self;
-        fn connect(&self, addr: &str);
+        fn new(addr: &str) -> Self;
+        // fn connect(&self, addr: &str) -> Cache;
         fn set(&self, key: &str, value: &str);
         fn get(&self, key: &str) -> redis::RedisResult<()>;
         fn del(&self, key: &str);
     }
 
-    pub struct Cache { connection: Option<redis::Connection> }
+    //pub struct Cache { connection: Option<redis::Connection> }
+    pub struct Cache { connection: redis::Connection }
 
     impl AbstractCache for Cache {
-        fn new() -> Cache {
-            Cache {connection: None}
+        fn new(addr: &str) -> Cache {
+            let client = redis::Client::open(addr).unwrap();
+            let connection = client.get_connection().unwrap();
+            Cache { connection: connection }
         }
 
-        fn connect(&self, addr: &str) {
-            let client = redis::Client::open(addr).unwrap();
-            self.connection = Some(client.get_connection().unwrap());
-        }
+        //fn connect(&self, addr: &str) -> Cache {
+        //    let client = redis::Client::open(addr).unwrap();
+        //    self.connection = Some(client.get_connection().unwrap());
+        //    self
+        //}
 
         fn set(&self, key: &str, value: &str){
             use redis::Commands;
-            let mut conn = self.connection.unwrap();
-            let _: () = conn.set(key, value).unwrap();
-
+            let conn =  self.connection;
+            conn.set::<&str, &str, ()>(key, value);
         }
 
         fn get(&self, key: &str) -> redis::RedisResult<()> {
             use redis::Commands;
-            let mut conn = self.connection.as_ref().unwrap();
-            let _: redis::RedisResult<()> = *conn.get(key);
+            let conn = self.connection;
+            let _: () = conn.get::<&str, ()>(key).unwrap();
             Ok(())
-        }
+        } 
 
         fn del(&self, key: &str) {
 
@@ -55,7 +58,10 @@ fn test_redis() -> RedisResult<()> {
 
 fn main() {
     use cache::{Cache, AbstractCache}; 
-    let mut _cache: Cache = AbstractCache::new();
-    _cache.connect("redis://0.tcp.ngrok.io:17570");
+    let mut _cache: Cache = AbstractCache::new("redis://0.tcp.ngrok.io:17570");
+    //let mut _cache: Cache = AbstractCache::new();
+    //_cache.connect("redis://0.tcp.ngrok.io:17570");
     _cache.get("foo");
 }
+
+
